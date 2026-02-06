@@ -1,13 +1,24 @@
 import bcrypt from "bcryptjs";
 import {readFileSync} from "fs";
 import {join} from "path";
+import 'dotenv/config'
 import {prisma} from "../src/database";
 import {CardModel} from "../src/generated/prisma/models/Card";
 import {PokemonType} from "../src/generated/prisma/enums";
+import { Card } from "../src/generated/prisma/client";
+
+function getRandomCards<T>(cards: T[], count: number): T[] {
+
+    const shuffled = [...cards].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+}
 
 async function main() {
+
     console.log("🌱 Starting database seed...");
 
+    await prisma.deckCard.deleteMany();
+    await prisma.deck.deleteMany();
     await prisma.card.deleteMany();
     await prisma.user.deleteMany();
 
@@ -42,6 +53,7 @@ async function main() {
     const pokemonData: CardModel[] = JSON.parse(pokemonJson);
 
     const createdCards = await Promise.all(
+        
         pokemonData.map((pokemon) =>
             prisma.card.create({
                 data: {
@@ -57,6 +69,47 @@ async function main() {
     );
 
     console.log(`✅ Created ${pokemonData.length} Pokemon cards`);
+
+    const randomCardsForRed = getRandomCards(createdCards, 10);
+    const randomCardsForBlue = getRandomCards(createdCards, 10);
+
+    const redDeck = await prisma.deck.create({
+        data: {
+            name: "Starter Deck",
+            userId: redUser.id,
+        },
+    });
+
+    const blueDeck = await prisma.deck.create({
+        data: {
+            name: "Starter Deck",
+            userId: blueUser.id,
+        },
+    });
+
+    await Promise.all(
+        randomCardsForRed.map((card) =>
+            prisma.deckCard.create({
+                data: {
+                    deckId: redDeck.id,
+                    cardId: card.id,
+                },
+            })
+        )
+    );
+
+    await Promise.all(
+        randomCardsForBlue.map((card) =>
+            prisma.deckCard.create({
+                data: {
+                    deckId: blueDeck.id,
+                    cardId: card.id,
+                },
+            })
+        )
+    );
+
+    console.log(`✅ Created starter decks for ${redUser.username} and ${blueUser.username} (10 cards each)`);
 
     console.log("\n🎉 Database seeding completed!");
 }
