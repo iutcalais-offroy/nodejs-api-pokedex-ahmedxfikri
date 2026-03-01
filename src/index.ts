@@ -6,8 +6,10 @@ import authRoutes from "./routes/auth.routes";
 import cardRoutes from "./routes/card.routes";
 import deckRoutes from "./routes/deck.routes";
 import {authenticateToken} from "./middlewares/auth.middleware";
+import { socketAuthMiddleware } from "./middlewares/socket-auth.middleware";
 import swaggerUi from "swagger-ui-express";
 import { generateSwaggerSpec } from "./docs/index";
+import { Server } from "socket.io";
 
 export const app = express();
 
@@ -62,6 +64,43 @@ if (require.main === module) {
     // Create HTTP server
     const httpServer = createServer(app);
 
+    // Initialize Socket.io with authentication
+    const io = new Server(httpServer, {
+        cors: {
+            origin: true,
+            credentials: true,
+        },
+    });
+
+    // Apply authentication middleware
+    io.use(socketAuthMiddleware);
+
+    // Handle Socket.io connections
+    io.on("connection", (socket) => {
+        console.log(`✓ Utilisateur connecté: ${socket.data.email} (${socket.data.userId})`);
+
+        // Send welcome message with user info
+        socket.emit("authenticated", {
+            message: "Authentification réussie",
+            userId: socket.data.userId,
+            email: socket.data.email,
+        });
+
+        // Handle disconnection
+        socket.on("disconnect", () => {
+            console.log(`✗ Utilisateur déconnecté: ${socket.data.email} (${socket.data.userId})`);
+        });
+
+        // Handle errors
+        socket.on("error", (error) => {
+            console.error(`Erreur Socket.io pour ${socket.data.email}:`, error);
+        });
+    });
+
+    // Handle authentication errors
+    io.on("connect_error", (error) => {
+        console.error("Erreur de connexion Socket.io:", error.message);
+    });
 
     // Start server
     try {

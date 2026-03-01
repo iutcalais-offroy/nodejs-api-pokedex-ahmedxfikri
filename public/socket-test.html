@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokedex TCG - Socket.io Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: monospace;
+        }
+        
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            max-height: 200px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .btn-connect {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-connect:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-disconnect {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-disconnect:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status.disconnected {
+            background: #ffe0e0;
+            color: #d32f2f;
+        }
+        
+        .status.connected {
+            background: #e0f7e0;
+            color: #388e3c;
+        }
+        
+        .status.error {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .logs {
+            background: #f5f5f5;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            font-family: monospace;
+            line-height: 1.6;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-error {
+            color: #d32f2f;
+        }
+        
+        .log-success {
+            color: #388e3c;
+        }
+        
+        .log-info {
+            color: #1976d2;
+        }
+        
+        .user-info {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .user-info.show {
+            display: block;
+        }
+        
+        .user-info strong {
+            color: #333;
+        }
+        
+        .user-info span {
+            color: #666;
+            font-family: monospace;
+        }
+        
+        .help-text {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .clear-logs {
+            padding: 8px 12px;
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        
+        .clear-logs:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Pokedex TCG - Socket.io</h1>
+        <p class="subtitle">Authentification et test en temps réel</p>
+        
+        <div id="status" class="status disconnected">
+            ● Déconnecté
+        </div>
+        
+        <div class="form-group">
+            <label for="token">Token JWT:</label>
+            <textarea id="token" placeholder="Collez votre token JWT ici..."></textarea>
+            <p class="help-text">Récupérez un token via /api/auth/sign-in</p>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-connect" id="connectBtn" onclick="connect()">Connecter</button>
+            <button class="btn-disconnect" id="disconnectBtn" onclick="disconnect()" disabled>Déconnecter</button>
+        </div>
+        
+        <div id="userInfo" class="user-info">
+            <strong>Utilisateur authentifié:</strong><br>
+            ID: <span id="userId"></span><br>
+            Email: <span id="userEmail"></span>
+        </div>
+        
+        <h3 style="margin: 20px 0 10px 0; color: #333; font-size: 16px;">Logs:</h3>
+        <div class="logs" id="logs">
+            <div class="log-entry log-info">En attente de connexion...</div>
+        </div>
+        <button class="clear-logs" onclick="clearLogs()">Effacer les logs</button>
+    </div>
+
+    <script>
+        let socket = null;
+        
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('Logs effacés', 'info');
+        }
+        
+        function updateStatus(text, type) {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.className = `status ${type}`;
+        }
+        
+        function connect() {
+            const token = document.getElementById('token').value.trim();
+            
+            if (!token) {
+                log('Erreur: Token manquant', 'error');
+                updateStatus('● Erreur: Token manquant', 'error');
+                return;
+            }
+            
+            updateStatus('● Connexion en cours...', 'loading');
+            log('Tentative de connexion avec token...', 'info');
+            
+            socket = io(window.location.href, {
+                auth: {
+                    token: token
+                }
+            });
+            
+            socket.on('connect', () => {
+                log('✓ Connecté au serveur', 'success');
+            });
+            
+            socket.on('authenticated', (data) => {
+                log(`✓ Authentification réussie!`, 'success');
+                log(`  ID: ${data.userId}`, 'success');
+                log(`  Email: ${data.email}`, 'success');
+                
+                updateStatus(`● Connecté (${data.email})`, 'connected');
+                
+                document.getElementById('userId').textContent = data.userId;
+                document.getElementById('userEmail').textContent = data.email;
+                document.getElementById('userInfo').classList.add('show');
+                
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('token').disabled = true;
+            });
+            
+            socket.on('disconnect', () => {
+                log('✗ Déconnecté du serveur', 'error');
+                updateStatus('● Déconnecté', 'disconnected');
+                
+                document.getElementById('userInfo').classList.remove('show');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('token').disabled = false;
+            });
+            
+            socket.on('connect_error', (error) => {
+                log(`✗ Erreur: ${error.message}`, 'error');
+                updateStatus(`● Erreur: ${error.message}`, 'error');
+                
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('token').disabled = false;
+            });
+            
+            socket.on('error', (error) => {
+                log(`✗ Erreur Socket: ${error}`, 'error');
+            });
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                log('Déconnexion manuelle', 'info');
+                socket = null;
+            }
+        }
+        
+        // Gestion de la touche Entrée
+        document.getElementById('token').addEventListener('keypress', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                connect();
+            }
+        });
+        
+        log('Page initialisée. Collez un token JWT et connectez-vous.', 'info');
+    </script>
+</body>
+</html>
