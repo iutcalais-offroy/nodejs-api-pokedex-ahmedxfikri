@@ -4,14 +4,14 @@ import { env } from "../env";
 import { StatusCodes } from "http-status-codes";
 
 /**
- * Middleware pour vérifier le token JWT dans l'en-tête Authorization.
- * Ajoute userId et email dans req.user si le token est valide.
- * @param {Request} req - Requête Express.
- * @param {Response} res - Réponse Express.
- * @param {NextFunction} next - Fonction pour passer au middleware suivant.
- * @returns {void} Appelle next() si le token est valide, sinon retourne une erreur.
- * @throws {401} Token manquant, invalide ou expiré.
- * @throws {500} Erreur serveur.
+ * Middleware qui vérifie le token JWT dans l'en-tête Authorization
+ * Ajoute userId et email dans req.user si le token est valide
+ * @param {Request} req - Requête Express
+ * @param {Response} res - Réponse Express
+ * @param {NextFunction} next - Fonction pour passer au middleware suivant
+ * @returns {void} Appelle next() si OK, sinon retourne une erreur
+ * @throws {401} Token manquant, invalide ou expiré
+ * @throws {500} Erreur serveur
  */
 export const authenticateToken = (
     req: Request,
@@ -19,30 +19,30 @@ export const authenticateToken = (
     next: NextFunction
 ): void => {
     try {
-        // Récupérer le token depuis l'en-tête Authorization
+        // 1. Récupérer le token depuis l'en-tête Authorization
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token manquant. Format attendu : Authorization: Bearer <token>.",
+                error: "Unauthorized",
+                message: "Token manquant. Format attendu: Authorization: Bearer <token>",
             });
             return;
         }
 
-        // Extraire le token
+        // Extraire le token (enlever "Bearer ")
         const token = authHeader.substring(7);
 
         if (!token) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token manquant.",
+                error: "Unauthorized",
+                message: "Token manquant",
             });
             return;
         }
 
         try {
-            // Vérifier et décoder le token
+            // 2. Vérifier et décoder le token
             const decoded = jwt.verify(token, env.JWT_SECRET) as {
                 userId: number;
                 email: string;
@@ -50,34 +50,34 @@ export const authenticateToken = (
                 exp?: number;
             };
 
-            // Ajouter userId et email à la requête
+            // 3. Ajouter userId et email à la requête pour l'utiliser dans les routes
             req.user = {
                 userId: decoded.userId,
                 email: decoded.email,
             };
 
-            // Passer au prochain middleware ou à la route
+            // 4. Passer au prochain middleware ou à la route
             next();
         } catch (error) {
-            // Gérer les erreurs de token
+            // Token invalide ou expiré
             if (error instanceof jwt.TokenExpiredError) {
                 res.status(StatusCodes.UNAUTHORIZED).json({
-                    erreur: "Non autorisé",
-                    message: "Token expiré.",
+                    error: "Unauthorized",
+                    message: "Token expiré",
                 });
                 return;
             }
 
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token invalide.",
+                error: "Unauthorized",
+                message: "Token invalide",
             });
             return;
         }
     } catch (error) {
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            erreur: "Erreur serveur",
-            message: "Une erreur est survenue lors de la vérification du token.",
+            error: "Internal Server Error",
+            message: "Erreur lors de la vérification du token",
         });
         return;
     }
