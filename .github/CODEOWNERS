@@ -1,0 +1,13 @@
+# Default owners for everything
+* @iutcalais-offroy
+
+# Backend code
+/src/ @iutcalais-offroy
+/tests/ @iutcalais-offroy
+
+# Database schema
+/prisma/ @iutcalais-offroy
+
+# Configuration files
+/tsconfig.json @iutcalais-offroy
+/.github/workflows/ @iutcalais-offroy

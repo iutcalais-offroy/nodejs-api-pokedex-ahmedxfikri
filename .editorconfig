@@ -1,0 +1,19 @@
+# EditorConfig - Configure automatiquement les éditeurs pour le bon style
+
+root = true
+
+# Pour tous les fichiers
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+# JS, TS, JSON, YAML - 2 espaces
+[*.{js,ts,json,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Markdown - pas de trim trailing
+[*.md]
+trim_trailing_whitespace = false
+

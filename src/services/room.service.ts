@@ -70,7 +70,12 @@ class RoomService {
   /**
    * Rejoint une room existante
    */
-  async joinRoom(roomId: string, userId: number, email: string, deckId: number): Promise<Room | null> {
+  async joinRoom(
+    roomId: string,
+    userId: number,
+    email: string,
+    deckId: number,
+  ): Promise<Room | null> {
     const room = this.rooms.get(roomId);
 
     if (!room) {

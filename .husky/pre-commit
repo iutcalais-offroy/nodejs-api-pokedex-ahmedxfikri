@@ -1,0 +1,9 @@
+#!/bin/sh
+# Avant de faire un commit, vérifie que le code est correctement formaté et sans erreurs
+
+echo "🔍 Vérification du code..."
+
+npm run lint || exit 1
+npm run format:check || exit 1
+
+echo "✅ Code OK, commit accepté"
