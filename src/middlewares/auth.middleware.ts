@@ -3,7 +3,16 @@ import jwt from "jsonwebtoken";
 import { env } from "../env";
 import { StatusCodes } from "http-status-codes";
 
-
+/**
+ * Middleware pour vérifier le token JWT dans l'en-tête Authorization.
+ * Ajoute userId et email dans req.user si le token est valide.
+ * @param {Request} req - Requête Express.
+ * @param {Response} res - Réponse Express.
+ * @param {NextFunction} next - Fonction pour passer au middleware suivant.
+ * @returns {void} Appelle next() si le token est valide, sinon retourne une erreur.
+ * @throws {401} Token manquant, invalide ou expiré.
+ * @throws {500} Erreur serveur.
+ */
 export const authenticateToken = (
     req: Request,
     res: Response,
@@ -15,25 +24,25 @@ export const authenticateToken = (
 
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token manquant. Format attendu: Authorization: Bearer <token>",
+                erreur: "Non autorisé",
+                message: "Token manquant. Format attendu : Authorization: Bearer <token>.",
             });
             return;
         }
 
-        // Extraire le token (enlever "Bearer ")
+        // Extraire le token
         const token = authHeader.substring(7);
 
         if (!token) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token manquant",
+                erreur: "Non autorisé",
+                message: "Token manquant.",
             });
             return;
         }
 
         try {
-            //  Vérifier et décoder le token
+            // Vérifier et décoder le token
             const decoded = jwt.verify(token, env.JWT_SECRET) as {
                 userId: number;
                 email: string;
@@ -41,7 +50,7 @@ export const authenticateToken = (
                 exp?: number;
             };
 
-            //  Ajouter userId et email à la requête pour l'utiliser dans les routes
+            // Ajouter userId et email à la requête
             req.user = {
                 userId: decoded.userId,
                 email: decoded.email,
@@ -50,25 +59,25 @@ export const authenticateToken = (
             // Passer au prochain middleware ou à la route
             next();
         } catch (error) {
-            // Token invalide ou expiré
+            // Gérer les erreurs de token
             if (error instanceof jwt.TokenExpiredError) {
                 res.status(StatusCodes.UNAUTHORIZED).json({
-                    error: "Unauthorized",
-                    message: "Token expiré",
+                    erreur: "Non autorisé",
+                    message: "Token expiré.",
                 });
                 return;
             }
 
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token invalide",
+                erreur: "Non autorisé",
+                message: "Token invalide.",
             });
             return;
         }
     } catch (error) {
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            error: "Internal Server Error",
-            message: "Erreur lors de la vérification du token",
+            erreur: "Erreur serveur",
+            message: "Une erreur est survenue lors de la vérification du token.",
         });
         return;
     }

@@ -2,20 +2,19 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../database";
 
-interface CreateDeckBody {
-    name: string;
-    cards: number[];
-}
+// Taille maximale d'un deck
+const TAILLE_DECK = 10;
 
-interface UpdateDeckBody {
-    name?: string;
-    cards?: number[];
-}
-
-const DECK_SIZE = 10;
-
-// Créer un nouveau deck pour l'utilisateur authentifié
- 
+/**
+ * Crée un nouveau deck avec 10 cartes.
+ * @route POST /api/decks
+ * @param {Request<{}, {}, CreateDeckBody>} req - Requête contenant le nom et les cartes du deck.
+ * @param {Response} res - Réponse Express.
+ * @returns {Promise<void>} Retourne le deck créé avec ses cartes.
+ * @throws {401} Token manquant.
+ * @throws {400} Nom manquant ou cartes invalides.
+ * @throws {500} Erreur serveur.
+ */
 export const createDeck = async (
     req: Request<{}, {}, CreateDeckBody>,
     res: Response
@@ -26,42 +25,40 @@ export const createDeck = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token manquant",
+                erreur: "Non autorisé",
+                message: "Token manquant.",
             });
             return;
         }
 
         if (!name) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                error: "Bad Request",
-                message: "Le nom du deck est requis",
+                erreur: "Nom manquant",
+                message: "Le nom du deck est requis.",
             });
             return;
         }
 
-        if (!cards || cards.length !== DECK_SIZE) {
+        if (!cards || cards.length !== TAILLE_DECK) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                error: "Bad Request",
-                message: `Un deck doit contenir exactement ${DECK_SIZE} cartes`,
+                erreur: "Cartes invalides",
+                message: `Un deck doit contenir exactement ${TAILLE_DECK} cartes.`,
             });
             return;
         }
 
-        // Vérifier que toutes les cartes existent
-        const existingCards = await prisma.card.findMany({
+        const cartesExistantes = await prisma.card.findMany({
             where: { id: { in: cards } },
         });
 
-        if (existingCards.length !== DECK_SIZE) {
+        if (cartesExistantes.length !== TAILLE_DECK) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                error: "Bad Request",
-                message: "Certaines cartes n'existent pas",
+                erreur: "Cartes inexistantes",
+                message: "Certaines cartes n'existent pas.",
             });
             return;
         }
 
-        // Créer le deck avec ses cartes
         const deck = await prisma.deck.create({
             data: {
                 name,
@@ -83,14 +80,21 @@ export const createDeck = async (
     } catch (error) {
         console.error("Erreur lors de la création du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            error: "Internal Server Error",
-            message: "Erreur lors de la création du deck",
+            erreur: "Erreur serveur",
+            message: "Impossible de créer le deck.",
         });
     }
 };
 
-//Lister tous les decks de l'utilisateur authentifié
- 
+/**
+ * Liste tous les decks de l'utilisateur connecté.
+ * @route GET /api/decks/mine
+ * @param {Request} req - Requête contenant l'ID utilisateur.
+ * @param {Response} res - Réponse Express.
+ * @returns {Promise<void>} Retourne un tableau des decks de l'utilisateur.
+ * @throws {401} Token manquant.
+ * @throws {500} Erreur serveur.
+ */
 export const getMyDecks = async (
     req: Request,
     res: Response
@@ -100,8 +104,8 @@ export const getMyDecks = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token manquant",
+                erreur: "Non autorisé",
+                message: "Token manquant.",
             });
             return;
         }
@@ -122,15 +126,23 @@ export const getMyDecks = async (
     } catch (error) {
         console.error("Erreur lors de la récupération des decks:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            error: "Internal Server Error",
-            message: "Erreur lors de la récupération des decks",
+            erreur: "Erreur serveur",
+            message: "Erreur lors de la récupération des decks.",
         });
     }
 };
 
 /**
- * GET /api/decks/:id
- * Consulter un deck spécifique avec ses cartes
+ * Récupère un deck par son ID avec ses cartes.
+ * @route GET /api/decks/:id
+ * @param {Request<{ id: string }>} req - Requête contenant l'ID du deck.
+ * @param {Response} res - Réponse Express.
+ * @returns {Promise<void>} Retourne le deck avec ses cartes.
+ * @throws {401} Token manquant.
+ * @throws {400} ID invalide.
+ * @throws {404} Deck introuvable.
+ * @throws {403} Accès interdit.
+ * @throws {500} Erreur serveur.
  */
 export const getDeckById = async (
     req: Request<{ id: string }>,
@@ -142,16 +154,16 @@ export const getDeckById = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token manquant",
+                erreur: "Non autorisé",
+                message: "Token manquant.",
             });
             return;
         }
 
         if (isNaN(deckId)) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                error: "Bad Request",
-                message: "ID de deck invalide",
+                erreur: "ID de deck invalide",
+                message: "ID de deck invalide.",
             });
             return;
         }
@@ -169,16 +181,16 @@ export const getDeckById = async (
 
         if (!deck) {
             res.status(StatusCodes.NOT_FOUND).json({
-                error: "Not Found",
-                message: "Deck introuvable",
+                erreur: "Not Found",
+                message: "Deck introuvable.",
             });
             return;
         }
 
         if (deck.userId !== userId) {
             res.status(StatusCodes.FORBIDDEN).json({
-                error: "Forbidden",
-                message: "Vous n'avez pas accès à ce deck",
+                erreur: "Forbidden",
+                message: "Vous n'avez pas accès à ce deck.",
             });
             return;
         }
@@ -187,16 +199,13 @@ export const getDeckById = async (
     } catch (error) {
         console.error("Erreur lors de la récupération du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            error: "Internal Server Error",
-            message: "Erreur lors de la récupération du deck",
+            erreur: "Erreur serveur",
+            message: "Erreur lors de la récupération du deck.",
         });
     }
 };
 
-/**
- * PATCH /api/decks/:id
- * Modifier le nom et/ou les cartes du deck
- */
+// Modifie le nom et/ou les cartes d'un deck
 export const updateDeck = async (
     req: Request<{ id: string }, {}, UpdateDeckBody>,
     res: Response
@@ -208,16 +217,16 @@ export const updateDeck = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token manquant",
+                erreur: "Non autorisé",
+                message: "Token manquant.",
             });
             return;
         }
 
         if (isNaN(deckId)) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                error: "Bad Request",
-                message: "ID de deck invalide",
+                erreur: "ID de deck invalide",
+                message: "ID de deck invalide.",
             });
             return;
         }
@@ -229,26 +238,26 @@ export const updateDeck = async (
 
         if (!existingDeck) {
             res.status(StatusCodes.NOT_FOUND).json({
-                error: "Not Found",
-                message: "Deck introuvable",
+                erreur: "Not Found",
+                message: "Deck introuvable.",
             });
             return;
         }
 
         if (existingDeck.userId !== userId) {
             res.status(StatusCodes.FORBIDDEN).json({
-                error: "Forbidden",
-                message: "Vous n'avez pas accès à ce deck",
+                erreur: "Forbidden",
+                message: "Vous n'avez pas accès à ce deck.",
             });
             return;
         }
 
         // Si les cartes sont modifiées, vérifier qu'il y en a 10
         if (cards !== undefined) {
-            if (cards.length !== DECK_SIZE) {
+            if (cards.length !== TAILLE_DECK) {
                 res.status(StatusCodes.BAD_REQUEST).json({
-                    error: "Bad Request",
-                    message: `Un deck doit contenir exactement ${DECK_SIZE} cartes`,
+                    erreur: "Cartes invalides",
+                    message: `Un deck doit contenir exactement ${TAILLE_DECK} cartes.`,
                 });
                 return;
             }
@@ -258,10 +267,10 @@ export const updateDeck = async (
                 where: { id: { in: cards } },
             });
 
-            if (existingCards.length !== DECK_SIZE) {
+            if (existingCards.length !== TAILLE_DECK) {
                 res.status(StatusCodes.BAD_REQUEST).json({
-                    error: "Bad Request",
-                    message: "Certaines cartes n'existent pas",
+                    erreur: "Cartes inexistantes",
+                    message: "Certaines cartes n'existent pas.",
                 });
                 return;
             }
@@ -298,16 +307,13 @@ export const updateDeck = async (
     } catch (error) {
         console.error("Erreur lors de la modification du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            error: "Internal Server Error",
-            message: "Erreur lors de la modification du deck",
+            erreur: "Erreur serveur",
+            message: "Erreur lors de la modification du deck.",
         });
     }
 };
 
-/**
- * DELETE /api/decks/:id
- * Supprimer définitivement un deck
- */
+// Supprime un deck et ses cartes
 export const deleteDeck = async (
     req: Request<{ id: string }>,
     res: Response
@@ -318,16 +324,16 @@ export const deleteDeck = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                error: "Unauthorized",
-                message: "Token manquant",
+                erreur: "Non autorisé",
+                message: "Token manquant.",
             });
             return;
         }
 
         if (isNaN(deckId)) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                error: "Bad Request",
-                message: "ID de deck invalide",
+                erreur: "ID de deck invalide",
+                message: "ID de deck invalide.",
             });
             return;
         }
@@ -339,16 +345,16 @@ export const deleteDeck = async (
 
         if (!deck) {
             res.status(StatusCodes.NOT_FOUND).json({
-                error: "Not Found",
-                message: "Deck introuvable",
+                erreur: "Not Found",
+                message: "Deck introuvable.",
             });
             return;
         }
 
         if (deck.userId !== userId) {
             res.status(StatusCodes.FORBIDDEN).json({
-                error: "Forbidden",
-                message: "Vous n'avez pas accès à ce deck",
+                erreur: "Forbidden",
+                message: "Vous n'avez pas accès à ce deck.",
             });
             return;
         }
@@ -359,13 +365,13 @@ export const deleteDeck = async (
         });
 
         res.status(StatusCodes.OK).json({
-            message: "Deck supprimé avec succès",
+            message: "Deck supprimé avec succès.",
         });
     } catch (error) {
         console.error("Erreur lors de la suppression du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            error: "Internal Server Error",
-            message: "Erreur lors de la suppression du deck",
+            erreur: "Erreur serveur",
+            message: "Erreur lors de la suppression du deck.",
         });
     }
 };
