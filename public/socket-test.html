@@ -249,6 +249,30 @@
             Email: <span id="userEmail"></span>
         </div>
         
+        <div id="gameSection" style="display: none; margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd;">
+            <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Matchmaking</h3>
+            
+            <div class="form-group">
+                <label for="deckId">ID du Deck (pour créer/rejoindre):</label>
+                <input type="number" id="deckId" placeholder="Ex: 1" min="1">
+            </div>
+            
+            <div class="button-group">
+                <button style="background: #4CAF50; color: white;" onclick="createRoom()">Créer une Room</button>
+                <button style="background: #2196F3; color: white;" onclick="getRooms()">Lister les Rooms</button>
+            </div>
+            
+            <div id="roomsList" style="display: none; margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 6px;">
+                <h4 style="margin-bottom: 10px; color: #333;">Rooms disponibles:</h4>
+                <div id="roomsContent" style="font-size: 14px;"></div>
+            </div>
+            
+            <div id="gameStatus" style="display: none; margin-top: 15px; padding: 15px; background: #e8f5e9; border-left: 4px solid #4CAF50; border-radius: 4px; font-size: 14px;" >
+                <strong style="color: #2e7d32;">🎮 Partie en cours</strong><br>
+                <span id="gameStatusText"></span>
+            </div>
+        </div>
+        
         <h3 style="margin: 20px 0 10px 0; color: #333; font-size: 16px;">Logs:</h3>
         <div class="logs" id="logs">
             <div class="log-entry log-info">En attente de connexion...</div>
@@ -312,10 +336,94 @@
                 document.getElementById('userId').textContent = data.userId;
                 document.getElementById('userEmail').textContent = data.email;
                 document.getElementById('userInfo').classList.add('show');
+                document.getElementById('gameSection').style.display = 'block';
                 
                 document.getElementById('connectBtn').disabled = true;
                 document.getElementById('disconnectBtn').disabled = false;
                 document.getElementById('token').disabled = true;
+            });
+            
+            socket.on('roomCreated', (data) => {
+                log(`✓ Room créée: ${data.roomId}`, 'success');
+                document.getElementById('deckId').value = '';
+            });
+            
+            socket.on('roomsList', (data) => {
+                const roomsContent = document.getElementById('roomsContent');
+                
+                if (data.rooms.length === 0) {
+                    roomsContent.innerHTML = '<p style="color: #999;">Aucune room disponible</p>';
+                    return;
+                }
+                
+                let html = '';
+                data.rooms.forEach((room, index) => {
+                    html += `
+                        <div style="padding: 10px; margin: 10px 0; background: white; border-radius: 4px; border-left: 3px solid #2196F3;">
+                            <strong>Room ${index + 1}</strong> (${room.id.substr(0, 8)}...)<br>
+                            Host: ${room.host.email}<br>
+                            <button onclick="joinRoomById('${room.id}')" style="margin-top: 8px; padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Rejoindre</button>
+                        </div>
+                    `;
+                });
+                roomsContent.innerHTML = html;
+            });
+            
+            socket.on('roomsListUpdated', (data) => {
+                log(`Rooms mises à jour: ${data.rooms.length} disponible(s)`, 'info');
+            });
+         
+        
+        function createRoom() {
+            if (!socket || !socket.connected) {
+                log('Erreur: Non connecté', 'error');
+                return;
+            }
+            
+            const deckId = parseInt(document.getElementById('deckId').value);
+            
+            if (!deckId || deckId < 1) {
+                log('Erreur: ID de deck invalide', 'error');
+                return;
+            }
+            
+            log(`Création d'une room avec le deck ${deckId}...`, 'info');
+            socket.emit('createRoom', { deckId });
+        }
+        
+        function getRooms() {
+            if (!socket || !socket.connected) {
+                log('Erreur: Non connecté', 'error');
+                return;
+            }
+            
+            log('Récupération des rooms...', 'info');
+            document.getElementById('roomsList').style.display = 'block';
+            socket.emit('getRooms');
+        }
+        
+        function joinRoomById(roomId) {
+            if (!socket || !socket.connected) {
+                log('Erreur: Non connecté', 'error');
+                return;
+            }
+            
+            const deckId = parseInt(document.getElementById('deckId').value);
+            
+            if (!deckId || deckId < 1) {
+                log('Erreur: ID de deck invalide', 'error');
+                return;
+            }
+            
+            log(`Tentative de jonction à la room ${roomId} avec le deck ${deckId}...`, 'info');
+            socket.emit('joinRoom', { roomId, deckId });
+        }   
+            socket.on('gameStarted', (data) => {
+                log(`🎮 Partie démarrée!`, 'success');
+                log(`  Vous vs ${data.players.opponent.email}`, 'success');
+                
+                document.getElementById('gameStatus').style.display = 'block';
+                document.getElementById('gameStatusText').textContent = `Adversaire: ${data.players.opponent.email}`;
             });
             
             socket.on('disconnect', () => {
@@ -323,6 +431,7 @@
                 updateStatus('● Déconnecté', 'disconnected');
                 
                 document.getElementById('userInfo').classList.remove('show');
+                document.getElementById('gameSection').style.display = 'none';
                 document.getElementById('connectBtn').disabled = false;
                 document.getElementById('disconnectBtn').disabled = true;
                 document.getElementById('token').disabled = false;
@@ -337,8 +446,8 @@
                 document.getElementById('token').disabled = false;
             });
             
-            socket.on('error', (error) => {
-                log(`✗ Erreur Socket: ${error}`, 'error');
+            socket.on('error', (data) => {
+                log(`✗ Erreur: ${data.message}`, 'error');
             });
         }
         
