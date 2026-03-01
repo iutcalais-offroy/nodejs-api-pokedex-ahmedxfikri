@@ -5,6 +5,18 @@ import { prisma } from "../database";
 // Taille maximale d'un deck
 const TAILLE_DECK = 10;
 
+// Define the CreateDeckBody interface
+interface CreateDeckBody {
+    name: string;
+    cards: number[];
+}
+
+// Define the UpdateDeckBody interface
+interface UpdateDeckBody {
+    name?: string;
+    cards?: number[];
+}
+
 /**
  * Crée un nouveau deck avec 10 cartes.
  * @route POST /api/decks
@@ -64,7 +76,7 @@ export const createDeck = async (
                 name,
                 userId,
                 deckCards: {
-                    create: cards.map((cardId) => ({ cardId })),
+                    create: cards.map((cardId: number) => ({ cardId })),
                 },
             },
             include: {
