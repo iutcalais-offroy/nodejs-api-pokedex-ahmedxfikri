@@ -4,11 +4,11 @@
 import { Router } from "express";
 import { authenticateToken } from "../middlewares/auth.middleware";
 import {
-    createDeck,
-    getMyDecks,
-    getDeckById,
-    updateDeck,
-    deleteDeck,
+  createDeck,
+  getMyDecks,
+  getDeckById,
+  updateDeck,
+  deleteDeck,
 } from "../controllers/deck.controller";
 
 const router = Router();

@@ -1,5 +1,5 @@
-import YAML from 'yamljs';
-import path from 'path';
+import YAML from "yamljs";
+import path from "path";
 
 /**
  * Agrège et fusionne toutes les documentations Swagger/OpenAPI
@@ -8,13 +8,13 @@ import path from 'path';
 export const generateSwaggerSpec = () => {
   try {
     // Charger le fichier de configuration principal
-    const configPath = path.join(__dirname, 'swagger.config.yml');
+    const configPath = path.join(__dirname, "swagger.config.yml");
     const swaggerConfig = YAML.load(configPath);
 
     // Charger les documentations par module
-    const authDocPath = path.join(__dirname, 'auth.doc.yml');
-    const cardDocPath = path.join(__dirname, 'card.doc.yml');
-    const deckDocPath = path.join(__dirname, 'deck.doc.yml');
+    const authDocPath = path.join(__dirname, "auth.doc.yml");
+    const cardDocPath = path.join(__dirname, "card.doc.yml");
+    const deckDocPath = path.join(__dirname, "deck.doc.yml");
 
     const authDoc = YAML.load(authDocPath);
     const cardDoc = YAML.load(cardDocPath);
@@ -30,7 +30,7 @@ export const generateSwaggerSpec = () => {
 
     return swaggerConfig;
   } catch (error) {
-    console.error('Erreur lors de la génération de la spécification Swagger:', error);
+    console.error("Erreur lors de la génération de la spécification Swagger:", error);
     throw error;
   }
 };

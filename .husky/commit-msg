@@ -1,0 +1,5 @@
+#!/bin/sh
+# Vérifie que le message de commit respecte le format conventionnel
+# Ex: "feat: add user login" OK / "add stuff" NON
+
+npx commitlint --edit "$1"
