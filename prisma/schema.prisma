@@ -38,7 +38,7 @@ model Card {
   imgUrl        String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  deckcard      DeckCard[]
+  deckCards     DeckCard[]
 }
 
 model User {
@@ -48,28 +48,24 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  deck Deck[]
+  decks     Deck[]
 }
 
 model Deck {
-
   id        Int        @id @default(autoincrement())
-  name      String  
-  userId    Int  
-  user      User       @relation(fields: [userId], references: [id])      
+  name      String
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  deckcard  DeckCard[]
-
+  deckCards DeckCard[]
 }
 
-model DeckCard{
-
-  id        Int        @id @default(autoincrement())
-  deckId    Int 
-  deck      Deck       @relation(fields: [deckId], references: [id])
-  cardId    Int 
-  card      Card       @relation(fields: [cardId], references: [id])
-
-  
-} 
+model DeckCard {
+  id        Int      @id @default(autoincrement())
+  deckId    Int
+  cardId    Int
+  deck      Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
