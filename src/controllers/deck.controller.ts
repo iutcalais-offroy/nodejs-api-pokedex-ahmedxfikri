@@ -2,30 +2,27 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../database";
 
-// Taille maximale d'un deck
-const TAILLE_DECK = 10;
-
-// Define the CreateDeckBody interface
 interface CreateDeckBody {
     name: string;
     cards: number[];
 }
 
-// Define the UpdateDeckBody interface
 interface UpdateDeckBody {
     name?: string;
     cards?: number[];
 }
 
+const DECK_SIZE = 10;
+
 /**
- * Crée un nouveau deck avec 10 cartes.
+ * Crée un nouveau deck avec 10 cartes
  * @route POST /api/decks
- * @param {Request<{}, {}, CreateDeckBody>} req - Requête contenant le nom et les cartes du deck.
- * @param {Response} res - Réponse Express.
- * @returns {Promise<void>} Retourne le deck créé avec ses cartes.
- * @throws {401} Token manquant.
- * @throws {400} Nom manquant ou cartes invalides.
- * @throws {500} Erreur serveur.
+ * @param {Request<{}, {}, CreateDeckBody>} req - Requête avec name et cards dans le body, req.user.userId depuis le middleware
+ * @param {Response} res - Réponse Express
+ * @returns {Promise<void>} Retourne le deck créé avec ses cartes
+ * @throws {401} Token manquant
+ * @throws {400} Nom manquant ou deck pas exactement 10 cartes ou cartes inexistantes
+ * @throws {500} Erreur serveur
  */
 export const createDeck = async (
     req: Request<{}, {}, CreateDeckBody>,
@@ -37,46 +34,48 @@ export const createDeck = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token manquant.",
+                error: "Unauthorized",
+                message: "Token manquant",
             });
             return;
         }
 
         if (!name) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                erreur: "Nom manquant",
-                message: "Le nom du deck est requis.",
+                error: "Bad Request",
+                message: "Le nom du deck est requis",
             });
             return;
         }
 
-        if (!cards || cards.length !== TAILLE_DECK) {
+        if (!cards || cards.length !== DECK_SIZE) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                erreur: "Cartes invalides",
-                message: `Un deck doit contenir exactement ${TAILLE_DECK} cartes.`,
+                error: "Bad Request",
+                message: `Un deck doit contenir exactement ${DECK_SIZE} cartes`,
             });
             return;
         }
 
-        const cartesExistantes = await prisma.card.findMany({
+        // Vérifier que toutes les cartes existent
+        const existingCards = await prisma.card.findMany({
             where: { id: { in: cards } },
         });
 
-        if (cartesExistantes.length !== TAILLE_DECK) {
+        if (existingCards.length !== DECK_SIZE) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                erreur: "Cartes inexistantes",
-                message: "Certaines cartes n'existent pas.",
+                error: "Bad Request",
+                message: "Certaines cartes n'existent pas",
             });
             return;
         }
 
+        // Créer le deck avec ses cartes
         const deck = await prisma.deck.create({
             data: {
                 name,
                 userId,
                 deckCards: {
-                    create: cards.map((cardId: number) => ({ cardId })),
+                    create: cards.map((cardId) => ({ cardId })),
                 },
             },
             include: {
@@ -92,20 +91,20 @@ export const createDeck = async (
     } catch (error) {
         console.error("Erreur lors de la création du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            erreur: "Erreur serveur",
-            message: "Impossible de créer le deck.",
+            error: "Internal Server Error",
+            message: "Erreur lors de la création du deck",
         });
     }
 };
 
 /**
- * Liste tous les decks de l'utilisateur connecté.
+ * Liste tous les decks de l'utilisateur connecté
  * @route GET /api/decks/mine
- * @param {Request} req - Requête contenant l'ID utilisateur.
- * @param {Response} res - Réponse Express.
- * @returns {Promise<void>} Retourne un tableau des decks de l'utilisateur.
- * @throws {401} Token manquant.
- * @throws {500} Erreur serveur.
+ * @param {Request} req - Requête avec req.user.userId depuis le middleware
+ * @param {Response} res - Réponse Express
+ * @returns {Promise<void>} Retourne un tableau avec tous les decks de l'utilisateur
+ * @throws {401} Token manquant
+ * @throws {500} Erreur serveur
  */
 export const getMyDecks = async (
     req: Request,
@@ -116,8 +115,8 @@ export const getMyDecks = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token manquant.",
+                error: "Unauthorized",
+                message: "Token manquant",
             });
             return;
         }
@@ -138,23 +137,23 @@ export const getMyDecks = async (
     } catch (error) {
         console.error("Erreur lors de la récupération des decks:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            erreur: "Erreur serveur",
-            message: "Erreur lors de la récupération des decks.",
+            error: "Internal Server Error",
+            message: "Erreur lors de la récupération des decks",
         });
     }
 };
 
 /**
- * Récupère un deck par son ID avec ses cartes.
+ * Récupère un deck par son ID avec ses cartes
  * @route GET /api/decks/:id
- * @param {Request<{ id: string }>} req - Requête contenant l'ID du deck.
- * @param {Response} res - Réponse Express.
- * @returns {Promise<void>} Retourne le deck avec ses cartes.
- * @throws {401} Token manquant.
- * @throws {400} ID invalide.
- * @throws {404} Deck introuvable.
- * @throws {403} Accès interdit.
- * @throws {500} Erreur serveur.
+ * @param {Request<{ id: string }>} req - Requête avec l'ID du deck dans req.params.id et req.user.userId depuis le middleware
+ * @param {Response} res - Réponse Express
+ * @returns {Promise<void>} Retourne le deck avec ses cartes
+ * @throws {401} Token manquant
+ * @throws {400} ID invalide
+ * @throws {404} Deck introuvable
+ * @throws {403} Deck n'appartient pas à l'utilisateur
+ * @throws {500} Erreur serveur
  */
 export const getDeckById = async (
     req: Request<{ id: string }>,
@@ -166,16 +165,16 @@ export const getDeckById = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token manquant.",
+                error: "Unauthorized",
+                message: "Token manquant",
             });
             return;
         }
 
         if (isNaN(deckId)) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                erreur: "ID de deck invalide",
-                message: "ID de deck invalide.",
+                error: "Bad Request",
+                message: "ID de deck invalide",
             });
             return;
         }
@@ -193,16 +192,16 @@ export const getDeckById = async (
 
         if (!deck) {
             res.status(StatusCodes.NOT_FOUND).json({
-                erreur: "Not Found",
-                message: "Deck introuvable.",
+                error: "Not Found",
+                message: "Deck introuvable",
             });
             return;
         }
 
         if (deck.userId !== userId) {
             res.status(StatusCodes.FORBIDDEN).json({
-                erreur: "Forbidden",
-                message: "Vous n'avez pas accès à ce deck.",
+                error: "Forbidden",
+                message: "Vous n'avez pas accès à ce deck",
             });
             return;
         }
@@ -211,13 +210,24 @@ export const getDeckById = async (
     } catch (error) {
         console.error("Erreur lors de la récupération du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            erreur: "Erreur serveur",
-            message: "Erreur lors de la récupération du deck.",
+            error: "Internal Server Error",
+            message: "Erreur lors de la récupération du deck",
         });
     }
 };
 
-// Modifie le nom et/ou les cartes d'un deck
+/**
+ * Modifie le nom et/ou les cartes d'un deck
+ * @route PATCH /api/decks/:id
+ * @param {Request<{ id: string }, {}, UpdateDeckBody>} req - Requête avec l'ID dans req.params.id, name et/ou cards dans le body, req.user.userId depuis le middleware
+ * @param {Response} res - Réponse Express
+ * @returns {Promise<void>} Retourne le deck mis à jour avec ses cartes
+ * @throws {401} Token manquant
+ * @throws {400} ID invalide ou deck pas exactement 10 cartes ou cartes inexistantes
+ * @throws {404} Deck introuvable
+ * @throws {403} Deck n'appartient pas à l'utilisateur
+ * @throws {500} Erreur serveur
+ */
 export const updateDeck = async (
     req: Request<{ id: string }, {}, UpdateDeckBody>,
     res: Response
@@ -229,16 +239,16 @@ export const updateDeck = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token manquant.",
+                error: "Unauthorized",
+                message: "Token manquant",
             });
             return;
         }
 
         if (isNaN(deckId)) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                erreur: "ID de deck invalide",
-                message: "ID de deck invalide.",
+                error: "Bad Request",
+                message: "ID de deck invalide",
             });
             return;
         }
@@ -250,26 +260,26 @@ export const updateDeck = async (
 
         if (!existingDeck) {
             res.status(StatusCodes.NOT_FOUND).json({
-                erreur: "Not Found",
-                message: "Deck introuvable.",
+                error: "Not Found",
+                message: "Deck introuvable",
             });
             return;
         }
 
         if (existingDeck.userId !== userId) {
             res.status(StatusCodes.FORBIDDEN).json({
-                erreur: "Forbidden",
-                message: "Vous n'avez pas accès à ce deck.",
+                error: "Forbidden",
+                message: "Vous n'avez pas accès à ce deck",
             });
             return;
         }
 
         // Si les cartes sont modifiées, vérifier qu'il y en a 10
         if (cards !== undefined) {
-            if (cards.length !== TAILLE_DECK) {
+            if (cards.length !== DECK_SIZE) {
                 res.status(StatusCodes.BAD_REQUEST).json({
-                    erreur: "Cartes invalides",
-                    message: `Un deck doit contenir exactement ${TAILLE_DECK} cartes.`,
+                    error: "Bad Request",
+                    message: `Un deck doit contenir exactement ${DECK_SIZE} cartes`,
                 });
                 return;
             }
@@ -279,10 +289,10 @@ export const updateDeck = async (
                 where: { id: { in: cards } },
             });
 
-            if (existingCards.length !== TAILLE_DECK) {
+            if (existingCards.length !== DECK_SIZE) {
                 res.status(StatusCodes.BAD_REQUEST).json({
-                    erreur: "Cartes inexistantes",
-                    message: "Certaines cartes n'existent pas.",
+                    error: "Bad Request",
+                    message: "Certaines cartes n'existent pas",
                 });
                 return;
             }
@@ -319,13 +329,24 @@ export const updateDeck = async (
     } catch (error) {
         console.error("Erreur lors de la modification du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            erreur: "Erreur serveur",
-            message: "Erreur lors de la modification du deck.",
+            error: "Internal Server Error",
+            message: "Erreur lors de la modification du deck",
         });
     }
 };
 
-// Supprime un deck et ses cartes
+/**
+ * Supprime un deck et ses cartes
+ * @route DELETE /api/decks/:id
+ * @param {Request<{ id: string }>} req - Requête avec l'ID dans req.params.id et req.user.userId depuis le middleware
+ * @param {Response} res - Réponse Express
+ * @returns {Promise<void>} Retourne un message de confirmation
+ * @throws {401} Token manquant
+ * @throws {400} ID invalide
+ * @throws {404} Deck introuvable
+ * @throws {403} Deck n'appartient pas à l'utilisateur
+ * @throws {500} Erreur serveur
+ */
 export const deleteDeck = async (
     req: Request<{ id: string }>,
     res: Response
@@ -336,16 +357,16 @@ export const deleteDeck = async (
 
         if (!userId) {
             res.status(StatusCodes.UNAUTHORIZED).json({
-                erreur: "Non autorisé",
-                message: "Token manquant.",
+                error: "Unauthorized",
+                message: "Token manquant",
             });
             return;
         }
 
         if (isNaN(deckId)) {
             res.status(StatusCodes.BAD_REQUEST).json({
-                erreur: "ID de deck invalide",
-                message: "ID de deck invalide.",
+                error: "Bad Request",
+                message: "ID de deck invalide",
             });
             return;
         }
@@ -357,16 +378,16 @@ export const deleteDeck = async (
 
         if (!deck) {
             res.status(StatusCodes.NOT_FOUND).json({
-                erreur: "Not Found",
-                message: "Deck introuvable.",
+                error: "Not Found",
+                message: "Deck introuvable",
             });
             return;
         }
 
         if (deck.userId !== userId) {
             res.status(StatusCodes.FORBIDDEN).json({
-                erreur: "Forbidden",
-                message: "Vous n'avez pas accès à ce deck.",
+                error: "Forbidden",
+                message: "Vous n'avez pas accès à ce deck",
             });
             return;
         }
@@ -377,13 +398,13 @@ export const deleteDeck = async (
         });
 
         res.status(StatusCodes.OK).json({
-            message: "Deck supprimé avec succès.",
+            message: "Deck supprimé avec succès",
         });
     } catch (error) {
         console.error("Erreur lors de la suppression du deck:", error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            erreur: "Erreur serveur",
-            message: "Erreur lors de la suppression du deck.",
+            error: "Internal Server Error",
+            message: "Erreur lors de la suppression du deck",
         });
     }
 };
