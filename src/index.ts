@@ -6,6 +6,8 @@ import authRoutes from "./routes/auth.routes";
 import cardRoutes from "./routes/card.routes";
 import deckRoutes from "./routes/deck.routes";
 import {authenticateToken} from "./middlewares/auth.middleware";
+import swaggerUi from "swagger-ui-express";
+import { generateSwaggerSpec } from "./docs/index";
 
 export const app = express();
 
@@ -21,6 +23,17 @@ app.use(express.json());
 
 // Serve static files 
 app.use(express.static('public'));
+
+// Swagger UI configuration
+const swaggerSpec = generateSwaggerSpec();
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    swaggerOptions: {
+        persistAuthorization: true,
+        displayOperationId: true,
+    },
+    customCss: '.topbar { display: none }',
+    customSiteTitle: 'Pokedex TCG API - Documentation',
+}));
 
 // Health check endpoint
 app.get("/api/health", (_req, res) => {
