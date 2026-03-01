@@ -8,6 +8,8 @@ import {PokemonType} from "../src/generated/prisma/enums";
 async function main() {
     console.log("🌱 Starting database seed...");
 
+    await prisma.deckCard.deleteMany();
+    await prisma.deck.deleteMany();
     await prisma.card.deleteMany();
     await prisma.user.deleteMany();
 
@@ -58,6 +60,46 @@ async function main() {
 
     console.log(`✅ Created ${pokemonData.length} Pokemon cards`);
 
+    const redDeck = await prisma.deck.create({
+        data: {
+            name: "Starter Deck",
+            userId: redUser.id,
+        },
+    });
+
+    const shuffledCardsRed = createdCards.sort(() => Math.random() - 0.5);
+    const cardsForRed = shuffledCardsRed.slice(0, 10);
+
+    for (const card of cardsForRed) {
+        await prisma.deckCard.create({
+            data: {
+                deckId: redDeck.id,
+                cardId: card.id,
+            },
+        });
+    }
+
+    const blueDeck = await prisma.deck.create({
+        data: {
+            name: "Starter Deck",
+            userId: blueUser.id,
+        },
+    });
+
+    const shuffledCardsBlue = createdCards.sort(() => Math.random() - 0.5);
+    const cardsForBlue = shuffledCardsBlue.slice(0, 10);
+
+    for (const card of cardsForBlue) {
+        await prisma.deckCard.create({
+            data: {
+                deckId: blueDeck.id,
+                cardId: card.id,
+            },
+        });
+    }
+
+    console.log(`✅ Created starter decks for ${redUser.username} and ${blueUser.username}`);
+
     console.log("\n🎉 Database seeding completed!");
 }
 
@@ -68,4 +110,5 @@ main()
     })
     .finally(async () => {
         await prisma.$disconnect();
+    });
     });
