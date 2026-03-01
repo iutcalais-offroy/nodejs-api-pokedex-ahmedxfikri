@@ -10,6 +10,7 @@ import { socketAuthMiddleware } from "./middlewares/socket-auth.middleware";
 import swaggerUi from "swagger-ui-express";
 import { generateSwaggerSpec } from "./docs/index";
 import { Server } from "socket.io";
+import { setupGameEvents } from "./events/game.events";
 
 export const app = express();
 
@@ -74,6 +75,9 @@ if (require.main === module) {
 
     // Apply authentication middleware
     io.use(socketAuthMiddleware);
+
+    // Setup game events (matchmaking, room creation, etc.)
+    setupGameEvents(io);
 
     // Handle Socket.io connections
     io.on("connection", (socket) => {
